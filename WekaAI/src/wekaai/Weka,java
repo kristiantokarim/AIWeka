@@ -16,6 +16,7 @@ import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.Discretize;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import weka.classifiers.bayes.NaiveBayesUpdateable;
+import weka.classifiers.evaluation.output.prediction.PlainText;;
 import weka.core.Instance;
 import weka.core.SerializationHelper;
 import weka.core.DenseInstance;
@@ -28,9 +29,9 @@ import weka.core.Attribute;
  */
 public class Aiweka {
 
-    public static Instances data;
+    public static Instances data, testSet;
     public static NaiveBayesUpdateable cls;
-    public static Classifier cl;
+    public static Classifier cl, model;
     public static String filter;
 
     /**
@@ -58,8 +59,8 @@ public class Aiweka {
         numericToNominal.setInputFormat(data);
         return Filter.useFilter(data, numericToNominal);
     }
-    public static String readModel(String path) throws Exception {
-        return SerializationHelper.read(path).toString();
+    public static Classifier readModel(String path) throws Exception {
+        return (Classifier) SerializationHelper.read(path);
     }
     
     public static void saveFile(String path) throws Exception{
@@ -68,13 +69,15 @@ public class Aiweka {
         oos.flush();
         oos.close();
     }
-    public static void readInstance(Instances ins, Scanner in){
+    public static Instances readInstance(Instances ins, Scanner in){
         int numAtt =  ins.numAttributes();
+        Instances testSet = new Instances(ins);
         Instance newData = new DenseInstance(numAtt);
-        newData.setDataset(ins);
         String b, ans = "Y";
         double a;
         boolean cont = true;
+        testSet.clear();
+        newData.setDataset(testSet);
         while (ans.equals("Y")){
             System.out.println("\nMasukkan nilai atribut :");
             for (int i=0; i<numAtt;i++){
@@ -89,12 +92,27 @@ public class Aiweka {
                     newData.setValue(i, b);
                 }
             }
-        ins.add(newData);
+        testSet.add(newData);
         System.out.print("\nApakah Anda ingin memasukkan data lain (Y/N)?: ");
         ans = in.next();
         }
+        return testSet;
     }
-    
+    public static void reEvaluateModel(Instances test, Classifier modelSet, Instances trainSet) throws Exception{
+        Evaluation eval = new Evaluation(trainSet);
+        StringBuffer predsBuffer = new StringBuffer();
+        PlainText plainText = new PlainText();
+        plainText.setHeader(trainSet);
+        plainText.setBuffer(predsBuffer);
+        
+        eval.evaluateModel(modelSet,test, plainText);
+        System.out.println("\nRESULT\n");
+        System.out.println("=== Predictions on user test set ===\n" +"\n" +"    inst#     actual  predicted error prediction");
+        System.out.println(predsBuffer.toString());
+        System.out.println(eval.toSummaryString("\n=== Summary ===\n", false));
+        System.out.println(eval.toClassDetailsString());
+        System.out.println(eval.toMatrixString()); 
+    }
     /**
      *
      * @param inInstances
@@ -141,54 +159,64 @@ public class Aiweka {
             boolean readData = false;
             Scanner in = new Scanner(System.in);
             System.out.println("\t\t\tTugas Kecil AI - WEKA");
-            System.out.println("Menu : ");
-            System.out.println("1. Read data set");
-            System.out.println("2. Read data from user");
-            System.out.println("3. Read model");
-            do {
-                System.out.print("Masukan pilihan : ");
-                pil = in.nextInt();
-                if (pil < 1 || pil > 3) {
-                    System.out.println("Input salah !");
-                }
-            }
-            while(pil < 1 || pil > 3);
-            System.out.print("Masukan path dari file : ");
+
+//==============OPERASI INPUT DATA=====================================
+            System.out.print("Please input training set data's path: ");
             String modelPath = in.next();
-            
-            if (pil==1||pil==2){
-                readDataFromFile(modelPath);
-                readData = true;
-                if (pil==2){                               
-                    readInstance(data, in);
-                    System.out.println(data.numInstances());
-                }
-            }else if (pil==3){
-                System.out.println("\t\t\tRESULT");
-                System.out.println(readModel(modelPath));
-            }
-            
+            readDataFromFile(modelPath);
+            readData = true;
+
+//==============FILTERING=================================================
             if (readData) {
-                System.out.println("Menu : ");
+                System.out.println("Filtering Data: ");
                 System.out.println("1. Filtering with discretize");
                 System.out.println("2. Filtering with NumericToNominal");
+                System.out.println("3. Without filtering");
                 do {
-                    System.out.print("Masukan pilihan : ");
+                    System.out.print("Answer: ");
                     pil = in.nextInt();
-                    if (pil < 1 || pil > 2) {
-                        System.out.println("Input salah !");
+                    if (pil < 1 || pil > 3) {
+                        System.out.println("Wrong input! Please try again with valid answer");
                     }
-                }
-                while(pil < 1 || pil > 2);
+                }while(pil < 1 || pil > 3);
+                
+                //create conteiner for filtered instance
                 Instances filtered = new Instances(data);
                 if (pil == 1) {
                     filtered = discretizeData();
                     filter = "Discretize-B10-M-1.0-Rfirst-last";
-                }
-                else if (pil == 2){
+                }else if (pil == 2){
                     filtered = numericToNominalData();
                     filter = "NumericToNominal-Rfirst-last";
+                }else if (pil==3){
+                    filtered = data;
                 }
+                
+//================OPERASI MODEL================================================
+            System.out.println("Menu : ");
+            System.out.println("1. Create Classification Model");
+            System.out.println("2. Evaluate test set based on model");
+            System.out.print("Answer: ");
+            do {
+                System.out.print("Answer: ");
+                pil = in.nextInt();
+                if (pil < 1 || pil > 2) {
+                    System.out.println("Wrong input! Please try again with valid answer");
+                }
+            }while(pil < 1 || pil > 2);
+            
+            //EVALUATE MODEL
+            if (pil==2){
+                System.out.println("Masukan path model: ");
+                String modPath = in.next();
+                model = readModel(modPath);
+                System.out.println("Masukan test set: ");
+                testSet = readInstance(data, in);
+                reEvaluateModel(testSet, model, filtered);
+              
+            }
+            //CLASSI
+            else{
                 System.out.println("Menu : ");
                 System.out.println("1. Classify with Full-Training");
                 System.out.println("2. Classify with 10-Folds CrossValidation");
@@ -253,10 +281,9 @@ public class Aiweka {
                         pathFile += "\\" + fullName;
                     }else
                         pathFile = fullName;
-                    saveFile(pathFile);
-                    
-                    
+                    saveFile(pathFile);    
                 }
+            
                 System.out.println("Restart?(Y/N)");
                 do {
                     System.out.print("Masukan pilihan : ");
@@ -270,8 +297,10 @@ public class Aiweka {
                     restart = true;
                 }
             }
-        }while(restart);
-    }
+        }
+    }while(restart);
+}
+        
     public static void main(String[] args) throws Exception {
         start();
     }
