@@ -301,8 +301,6 @@ public class Aiweka {
     }while(restart);
 }
         
-    public static void main(String[] args) throws Exception {
-        start();
-    }
+    
     
 }

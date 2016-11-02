@@ -76,11 +76,6 @@ public class WekaAI {
     public static Evaluation fullTrainingNaiveBayes(Instances inInstances) throws Exception {
         cls = new NaiveBayesUpdateable();
         cls.buildClassifier(inInstances);
-        Instance current;
-        for (int i = 0 ; i < inInstances.numInstances(); i++) {
-            current = inInstances.get(i);
-            cls.updateClassifier(current);
-        }
         Evaluation eval = new Evaluation(inInstances);
         eval.evaluateModel(cls, inInstances);
         return eval;
@@ -196,7 +191,7 @@ public class WekaAI {
                 System.out.println("Menu : ");
                 System.out.println("1. Filtering with Discretize");
                 System.out.println("2. Filtering with NumericToNominal");
-                System.out.println("2. Without Filtering");
+                System.out.println("3. Without Filtering");
                 do {
                     System.out.print("Masukan pilihan : ");
                     pil = in.nextInt();
